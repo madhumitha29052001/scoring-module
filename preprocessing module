@@ -1,0 +1,115 @@
+/*preprocessing module*/
+proc import datafile="/home/u61679224/sasuser.v94/test/Model_Data_Piggly Wiggly Midwest.csv"
+    dbms=csv
+    out=model_data;
+    guessingrows =1705;
+    replace;
+run;
+proc import datafile="/home/u61679224/sasuser.v94/test/Model_Coeff_Piggly Wiggly Midwest.csv"
+    dbms=csv
+    out=model_val
+    replace;
+run;
+data model_data;
+set work.model_data;
+if modellingPpg = "" | missing(modellingPpg) then delete;
+New_DateID = input(DateID,mmddyy10.);
+format New_DateID mmddyy10.;
+vendor= compress(vendor);
+PPG_Key = catx('_',Segment,Vendor,MarketDescription,modellingPpg);
+drop DateID;
+run;
+data model_val;
+set work.model_val;
+vendor= compress(vendor);
+PPG_Key = catx('_',Segment,Vendor,MarketDescription,modellingPpg);
+PPG_Market = catx('-',MarketDescription,vendor,modellingPpg);
+run;
+/*proc sql;
+select * into: model_data from work.model_data where DateID > model_start_date and DateID < model_end_date;
+run;*/
+proc export data=model_data_checking
+    outfile="/home/u61679224/sasuser.v94/test/model_data_checking.xlsx"
+    dbms=xlsx
+    replace;   
+run;
+data model_val1;/*temporary table*/
+set work.model_val;
+data model_data1;/*temporary table*/
+set work.model_data;
+proc sql;
+   select * into : model_val
+     from work.model_val1 p
+     where exists (select PPG_Key
+                      from work.model_data1 s
+                      where p.PPG_Key=s.PPG_Key);
+
+proc sql;/*getting unique values of ppgkey and year flag ans stroing them as temp*/
+create table temp as (
+select distinct PPG_Key ,  yearFlag from work.model_val1);
+proc sort data = work.model_data1 ;
+by PPG_Key;
+run;
+data model_data;
+   merge work.model_data1 work.temp;
+   by PPG_Key;
+run;
+data model_val(rename =(Segment = PPG_Cat modellingPpg = PPG_Description yearFlag= Model_flag RSquare= model_RSq mape= TrainMAPE));
+set work.model_val;
+if model_coefficient_name =: 'pcttpr'
+then  model_coefficient_name = "tpr_discount_byppg";
+ else model_coefficient_name =model_coefficient_name;
+ if model_coefficient_name =: 'price' then  model_coefficient_name = 'twk_sold_median_base_price_byppg_log';
+ else model_coefficient_name =model_coefficient_name;
+ if model_coefficient_name =: 'segTrend' then  model_coefficient_name = 'category_trend';
+ else model_coefficient_name =model_coefficient_name;
+ if model_coefficient_name =: 'qtrFlag2' then  model_coefficient_name = 'flag_qtr2';
+ else model_coefficient_name =model_coefficient_name;
+ if model_coefficient_name =: 'qtrFlag3' then  model_coefficient_name = 'flag_qtr3';
+ else model_coefficient_name =model_coefficient_name;
+ if model_coefficient_name =: 'qtrFlag4' then  model_coefficient_name = 'flag_qtr4';
+ else model_coefficient_name =model_coefficient_name;
+ if model_coefficient_name =: 'smoothPctACV' then  model_coefficient_name = 'ACV_Selling';
+ else model_coefficient_name =model_coefficient_name;
+ if model_coefficient_name =: 'featAndDispPctAcv' then  model_coefficient_name = 'ACV_Feat_Disp';
+ else model_coefficient_name =model_coefficient_name;
+ if model_coefficient_name =: 'featWoDispPctAcv' then  model_coefficient_name = '"ACV_Feat_Only';
+ else model_coefficient_name =model_coefficient_name;
+ if model_coefficient_name =: 'dispWoFeatPctAcv' then  model_coefficient_name = 'ACV_Disp_Only';
+ else model_coefficient_name =model_coefficient_name;
+ if model_coefficient_name =: 'runningMonthNum' then  model_coefficient_name = 'monthno';
+ else model_coefficient_name =model_coefficient_name;
+ if model_coefficient_name =: 'tprPercentLag1' then  model_coefficient_name = 'tpr_discount_byppg_lag1';
+ else model_coefficient_name =model_coefficient_name;
+if model_coefficient_name =: 'tprPercentLag2' then  model_coefficient_name = 'tpr_discount_byppg_lag2';
+ else model_coefficient_name =model_coefficient_name;
+ if model_coefficient_name =: 'Intercept' then  model_coefficient_name = '(Intercept)';
+ else model_coefficient_name =model_coefficient_name;
+   if model_coefficient_name =: 'Intercept' then  model_coefficient_name = '(Intercept)' ;
+   else model_coefficient_name =model_coefficient_name;;
+   if vendor =: 'NPPC' then  PPG_MFG = 'NPP';
+  else PPG_MFG ='Non-NPP';
+  if MarketDescription =:'CTA' then  Market = 'Retailer';
+ else Market ='ROM';
+ run;
+data model_val;
+set work.model_val;
+PPG_Item_No = catx('_',PPG_Description,Market);
+run;
+data model_data ;
+set model_data;
+rename L5CustomerName = Retailer L5CustomerID = RetailerID Vendor = VENDORC modellingPpg = PPG_Description New_DateID=Date segment=PPG_Cat salesUnits= wk_sold_qty_byppg salesDollars = wk_sold_doll_byppg baseUnits = wk_sold_qty_base_byppg baseDollars = wk_sold_doll_base_byppg
+                               avgPrice =  wk_sold_avg_price_byppg newBasePrice = New_base_price medianBasePrice  = median_baseprice finalBasePrice = Final_baseprice estimatedBasePrice = Estimated_baseprice tprPercent = tpr_discount_byppg
+                               tprPercentLag1= tpr_discount_byppg_lag1 tprPercentLag2 = tpr_discount_byppg_lag2 smoothPctACV = ACV_Selling medianPctACV= median_acv_selling featAndDispPctAcv = ACV_Feat_Disp
+                               featWoDispPctAcv = ACV_Feat_Only  dispWoFeatPctAcv= ACV_Disp_Only qtrFlag2= flag_qtr2 qtrFlag3= flag_qtr3         
+                               qtrFlag4= flag_qtr4 segTrend= category_trend runningMonthNum = monthno yearFlag= Model_flag priceDecrOnlyPctAcv= ACV_TPR_Only logSalesUnits = wk_sold_qty_byppg_log
+                               logAvgPrice = wk_sold_avg_price_byppg_log logMedianBasePrice =wk_sold_median_base_price_byppg
+                              Segment = PPG_Cat modellingPpg = PPG_Description yearFlag= Model_flag RSquare= model_RSq mape= TrainMAPE;                             
+if  vendorc =: 'NPPC' then PPG_MFG ='NPP'; else  PPG_MFG ='Non-NP';
+if MarketDescription =:'CTA' then PPG_Retailer = 'Retailer';
+ else PPG_Retailer ='ROM';
+PPG_Item_No = catx('_',PPG_Description,PPG_Retailer);
+year_Qtr = catx('_',year(Date),qtr(Date));
+run;
+
+
