@@ -103,7 +103,7 @@ rename L5CustomerName = Retailer L5CustomerID = RetailerID Vendor = VENDORC mode
                                tprPercentLag1= tpr_discount_byppg_lag1 tprPercentLag2 = tpr_discount_byppg_lag2 smoothPctACV = ACV_Selling medianPctACV= median_acv_selling featAndDispPctAcv = ACV_Feat_Disp
                                featWoDispPctAcv = ACV_Feat_Only  dispWoFeatPctAcv= ACV_Disp_Only qtrFlag2= flag_qtr2 qtrFlag3= flag_qtr3         
                                qtrFlag4= flag_qtr4 segTrend= category_trend runningMonthNum = monthno yearFlag= Model_flag priceDecrOnlyPctAcv= ACV_TPR_Only logSalesUnits = wk_sold_qty_byppg_log
-                               logAvgPrice = wk_sold_avg_price_byppg_log logMedianBasePrice =wk_sold_median_base_price_byppg
+                               logAvgPrice = wk_sold_avg_price_byppg_log logMedianBasePrice =wk_sold_median_base_price_byppg_log
                               Segment = PPG_Cat modellingPpg = PPG_Description yearFlag= Model_flag RSquare= model_RSq mape= TrainMAPE;                             
 if  vendorc =: 'NPPC' then PPG_MFG ='NPP'; else  PPG_MFG ='Non-NP';
 if MarketDescription =:'CTA' then PPG_Retailer = 'Retailer';
