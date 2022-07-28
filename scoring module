@@ -1,0 +1,41 @@
+/* considering 1 ppg scoring module*/
+%let ppg = "CAT TREATS_NPPC_CTA_CTWHISKERLICKINSCR065OZ";
+proc sql;
+ create table datast as (select * from model_data where PPG_Key = &ppg);
+  create table modelCoeffs_temp as (select * from model_val where PPG_Key = &ppg);
+  create table modelCoeffs_temp1 as (select model_coefficient_name,model_coefficient_value from modelCoeffs_temp);
+ data modelCoeffs_temp1;
+set modelCoeffs_temp1;
+if model_coefficient_name = "(Intercept)"  then delete;
+run;
+proc sql;
+create table model_base_data as (select PPG_Key,PPG_Description,MarketDescription,Date,PPG_Cat,VENDORC,wk_sold_qty_byppg,wk_sold_doll_byppg,
+                                                           wk_sold_avg_price_byppg,median_baseprice,       
+                                                           Final_baseprice,Estimated_baseprice,tpr_discount_byppg,tpr_discount_byppg_lag1,tpr_discount_byppg_lag2,
+                                                           ACV_Feat_Disp,ACV_Feat_Only,ACV_Disp_Only,ACV_Selling,flag_qtr2,flag_qtr3,flag_qtr4,
+                                                           category_trend,monthno,Model_flag from model_data where PPG_Key =&ppg) ;
+
+
+data cols;
+set modelCoeffs_temp1 ;
+drop model_coefficient_value;
+run;
+data cols;
+if find(model_coefficient_name,'CTA'|'RM') then do;
+proc sql;
+create table acting_Inter_item as (select model_coefficient_name from cols where model_coefficient_name like '%CTA%' or model_coefficient_name like '%RM%' );
+create table  RP_Interaction as (select model_coefficient_name from acting_Inter_item  where model_coefficient_name like '%\\*edlp%');
+create table  TPR_Interaction as (select model_coefficient_name from acting_Inter_item  where model_coefficient_name like '%\\*tpr%');
+create table acting_item_edlp as (select model_coefficient_name from acting_Inter_item where model_coefficient_name like '%edlp%' and acting_inter_item.model_coefficient_name <> RP_Interaction.model_coefficient_name;
+proc sql;
+create table acting_item_tpr as (select model_coefficient_name from acting_Inter_item where model_coefficient_name like 'tpr%');
+ /*and acting_inter_item.model_coefficient_name <> TPR_Interaction.model_coefficient_name;*/
+run;
+%global len;
+proc sql noprint;
+select count(*) into :len from acting_item_tpr;
+%let =&len;
+%if &len ne 0 %then %do;
+data acting_item_tpr1;
+set acting_item_tpr;
+model_coefficient_name = scan(model_coefficient_name,2,'_');
